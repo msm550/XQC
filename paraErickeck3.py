@@ -100,10 +100,10 @@ def E(i):
     sigmavSi=sum(sSi[i][0]*sSi[i][3] for i in range(nSi))
     sigmavHg=sum(sHg[i][0]*sHg[i][3] for i in range(nHg))
     sigmavTe=sum(sTe[i][0]*sTe[i][3] for i in range(nTe))
-    return(3e+7*eTime*N0*fe*rhoDM/nj/mH*(sigmavSi*mSi/Si+sigmavHg*mHg/Hg+sigmavTe*mTe/Te))
+    return(3e+7*eTime*N0*fe*rhoDM/nj/mH*(sigmavSi*mSi/Si/pASi+sigmavHg*mHg/Hg/pAHg+sigmavTe*mTe/Te/pATe))
        
 def scattering(v_ini):
-    if v_ini[3]<-.25:
+    if v_ini[1]>-.848:
         return(0)
     else:    
         ra=r01()
@@ -116,6 +116,9 @@ def scattering(v_ini):
             return(0)
         else:
             return([v_ini[0],mH,si0,si(mH,si0,A,rec),rec,A,v_ini[1]])
+
+def getKey(custom):
+    return(custom[0])
     
 if __name__ == '__main__':  
     Si=28
@@ -131,68 +134,34 @@ if __name__ == '__main__':
     rhoTarget=(rhoSi*volSi+rhoHgTe*volHgTe)/(volHgTe+volSi)
     eTime=100.7
     m_p=0.938
-    mH=float(input("DM's mass (GeV)="))
-    si0=float(input("cross-section (ubarn)="))*1e-30
+    nj=int(1e+6)
     rhoDM=0.3
     aF=0.52
     sF=0.9
     N0=6.02*1e+26
-    eRec=0
+    savet=[]
     bin=[[29e-9,36e-9,0],[36e-9,128e-9,11],[128e-9,300e-9,129],[300e-9,540e-9,80],[540e-9,700e-9,90],[700e-9,800e-9,32],[800e-9,945e-9,48],[945e-9,1100e-9,31],[1100e-9,1310e-9,30],[1310e-9,1500e-9,29],[1500e-9,1810e-9,32],[1810e-9,2505e-9,15],[4000e-9,1,60]]
-    l_inv_Si=lambdainv(mH,si0,Si,eRec)
-    l_inv_Hg=lambdainv(mH,si0,Hg,eRec)
-    l_inv_Te=lambdainv(mH,si0,Te,eRec)
-    leff=lambdaeff(l_inv_Si,l_inv_Hg,l_inv_Te)
-    pASi=pA(l_inv_Si,leff)
-    pATe=pA(l_inv_Te,leff)
-    nj=int(1e+6)
-    v = np.loadtxt('vi_Erickeck_3.dat').tolist()
-    pool1= mp.Pool(4)    
-    save=[]
-    s=pool1.map(scattering, v)
-    for j in range(nj):
-        if s[j]!=0:
-            save.append(s[j])
-    length=len(save)
-    pool2 = mp.Pool(4)
-    Ei=pool2.map(E,range(13))
-    X2=0
-    c_X2=0
-    Likelihood=0
-    for i in range(13):
-        if O(i)<Ei[i]:
-            X2+=(Ei[i]-O(i))**2/Ei[i]
-            c_X2+=1
-            Likelihood+=-poisson.logpmf(O(i), Ei[i], loc=0)
-    print("chi_square=", X2)
-    print("chi_square_weighted=", X2/(c_X2+1))
-    print("Likelihood=",Likelihood)
-    po=np.random.poisson(Ei,[100000,13])
-    X2list=[]
-    X2list_weighted=[]
-    X2_counts=0
-    X2_counts_weighted=0
-    Li_counts=0
-    for j in range(100000):
-        Xx=0
-        c_Xx=0
-        Likelihoodx=0
-        for i in range(13):
-            if po[j,i]<Ei[i]:
-                Xx+=(Ei[i]-po[j,i])**2/Ei[i]
-                c_Xx+=1
-                Likelihoodx+=-poisson.logpmf(po[j,i], Ei[i], loc=0)
-        if Xx>=X2:
-            X2_counts+=1
-        if Xx/(c_Xx+1)>=X2/(c_X2+1):
-            X2_counts_weighted+=1
-        if Likelihoodx>=Likelihood:
-            Li_counts+=1
-    CL=100*(1-X2_counts/100000)
-    CL_weighted=100*(1-X2_counts_weighted/100000)
-    CL_Li=100*(1-Li_counts/100000)
-    print("CL=",CL)
-    print("CL_weighted=",CL_weighted)
-    print("CL_L=",CL_Li)
-            
-         
+    v = np.loadtxt('vi_g_30.dat').tolist()
+    mHSigma=np.loadtxt("Chi2_body_g.dat").tolist()  
+    for i in range(len(mHSigma)):
+        eRec=0        
+        mH=mHSigma[i][0]
+        si0=mHSigma[i][1]
+        l_inv_Si=lambdainv(mH,si0,Si,eRec)
+        l_inv_Hg=lambdainv(mH,si0,Hg,eRec)
+        l_inv_Te=lambdainv(mH,si0,Te,eRec)
+        leff=lambdaeff(l_inv_Si,l_inv_Hg,l_inv_Te)
+        pASi=pA(l_inv_Si,leff)
+        pATe=pA(l_inv_Te,leff)
+        pAHg=1-pASi-pATe
+        pool1= mp.Pool(12)
+        save=[]
+        s=pool1.map(scattering, v)
+        for j in range(nj):
+            if s[j]!=0:
+                save.append(s[j])
+        length=len(save)
+        pool2= mp.Pool(12)    
+        Ei=pool2.map(E,range(13))
+        savet.append(mHSigma[i][:2]+Ei)
+    np.savetxt('Chi2_body_g.dat',savet)
