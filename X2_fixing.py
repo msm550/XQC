@@ -22,17 +22,17 @@ def CL_calc(Ei):
     return(CL)
 
 def search(Ei):
-    CL=CL_calc(Ei[2:15])
+    CL=CL_calc(Ei[3:16])
     print("The search to fix the CL for mass "+format(Ei[0],'.1f')+" GeV is initiated!")    
     while CL>91 or CL<89:
-        Ei=[Ei[0]]+[(1+(90-CL)*(180-CL)/100/180)*Ei[i] for i in range(1,15)]
-        CL=CL_calc(Ei[2:15])
-    print("mass "+format(Ei[0],'.1f')+" GeV's cross-section is "+format(Ei[1],'.2g')+" cm^2")
+        Ei=[Ei[0]]+[Ei[1]/(1+(90-CL)*(180-CL)/100/180)]+[(1+(90-CL)*(180-CL)/100/180)*Ei[i] for i in range(2,16)]
+        CL=CL_calc(Ei[3:15])
+    print("mass "+format(Ei[0],'.1f')+" GeV's cross-section is "+format(Ei[2],'.2g')+" cm^2")
     return(Ei)
     
 if __name__ == '__main__':
     bin=[[29e-9,36e-9,0],[36e-9,128e-9,11],[128e-9,300e-9,129],[300e-9,540e-9,80],[540e-9,700e-9,90],[700e-9,800e-9,32],[800e-9,945e-9,48],[945e-9,1100e-9,31],[1100e-9,1310e-9,30],[1310e-9,1500e-9,29],[1500e-9,1810e-9,32],[1810e-9,2505e-9,15],[4000e-9,1,60]]
-    E= np.loadtxt('sigma-v0_body(mH=1.5).dat').tolist()
+    E= np.loadtxt('sigma-v0_earth(mH=2mp)i.dat').tolist()
     pool1=mp.Pool(4)
     save=pool1.map(search,E)
-    np.savetxt('sigma-v0_body(mH=1.5).dat',save)
+    np.savetxt('sigma-v0_earth(mH=2mp)i.dat',save)
