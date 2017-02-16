@@ -84,11 +84,11 @@ if __name__ == '__main__':
     eRExtention=[i*1e-9 for i in range(10001,30001)]
     v = np.loadtxt('viE_sortedDet.dat').tolist()
     save=[]
-    mHSigma=np.loadtxt('Chi2_body.dat').tolist()
+    mHSigma=np.loadtxt("body_integralMethod.dat").tolist()
 
-    for i in range(17,len(mHSigma)):
+    for i in range(len(mHSigma)):
         mH=mHSigma[i][0]
-        si0=mHSigma[i][1]
+        si0=mHSigma[i][2]
         print("Expected spectrum calculation for "+format(mH,'.1f')+" GeV is initiated!")
         pool1= mp.Pool(4)
         if mH>10:
@@ -98,9 +98,9 @@ if __name__ == '__main__':
         s=sorted(s,key=getKey)
         pool2= mp.Pool(4)    
         Ei=pool2.map(E,range(13))
-        save.append(mHSigma[i][:2]+Ei)
-    savet=np.loadtxt("body_integralMethod.dat").tolist()
-    np.savetxt("body_integralMethod.dat",savet[:17]+save)
+        save.append([mH,si0]+Ei)
+
+    np.savetxt("body_integralMethod.dat",save)
 '''
     X2=0
     for i in range(13):
@@ -120,4 +120,4 @@ if __name__ == '__main__':
     CL=100*(1-X2_counts/100000)
     print("CL=",CL)
 '''            
-         
+

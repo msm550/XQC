@@ -54,9 +54,10 @@ if __name__ == '__main__':
     aF=0.52
     sF=0.9
     N0=6.02*1e+26
-    file_name="Chi2_earth.dat"
+    file_name="body_integralMethod.dat"
     mHSigma=np.loadtxt(file_name).tolist()
     s=[]
+    
     for i in range(len(mHSigma)):
         eRec=0        
         mH=mHSigma[i][0]
@@ -65,7 +66,7 @@ if __name__ == '__main__':
         l_inv_Hg=lambdainv(mH,si0,Hg,eRec)
         l_inv_Te=lambdainv(mH,si0,Te,eRec)
         leff=lambdaeff(l_inv_Si,l_inv_Hg,l_inv_Te)
-        s.append([mH,leff]+mHSigma[i][1:15])
+        s.append(mHSigma[i]+[leff])
     np.savetxt(file_name,s)
 
-        
+    
