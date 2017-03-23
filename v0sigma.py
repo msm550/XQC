@@ -13,19 +13,8 @@ def reduced(m1, m2):
     return (m1 * m2 / (m1 + m2))
 
 
-def r(mH, A):
-    return (4 * A * m_p * mH / (A * m_p + mH) ** 2)
-
-
-def F2_2(eR, A):
-    qF = np.sqrt(2 * mT(A) * eR)
-    cF = 1.23 * A ** (1 / 3) - 0.6
-    rF = np.sqrt(cF ** 2 + 7 * ((np.pi * aF) ** 2) / 3 - 5 * sF ** 2)
-    qrF = qF * rF / 0.197
-    if qrF <= 2:
-        return (np.exp(-(0.2 + (0.9 / rF) ** 2) * qrF ** 2))
-    else:
-        return (9 * 0.81 * np.exp(-(0.9 * qrF / rF) ** 2) / qrF ** 4)
+def vmin(eR, A):
+    return (np.sqrt(mT(A) * eR / 2) / reduced(A * m_p, mH))
 
 
 def F(eR, A):
@@ -39,109 +28,44 @@ def F(eR, A):
         return (3 * np.exp((qF * sF / 0.197) ** 2 / 2) * (np.sin(qrF) - np.cos(qrF) * qrF) / qrF ** 3)
 
 
-def si(mH, si0, A, eR):
-    return (si0 * (A * reduced(A * m_p, mH) * F(eR, A) / reduced(m_p, mH)) ** 2)
-
-
-def f(A):
-    if A == Si:
-        return (0.83145)
-    elif A == Hg:
-        return (0.10308)
-    else:
-        return (0.06547)
-
-
-def lambdainv(mH, si0, A, eR):
-    return (N0 * rhoTarget * si(mH, si0, A, eR) * f(A) / 1000 / A)
-
-
-def lambdaeff(lambdainvSi, lambdainvHg, lambdainvTe):
-    return ((lambdainvSi + lambdainvHg + lambdainvTe) ** -1)
-
-
-def pA(lambdainv, leff):
-    return (lambdainv * leff)
-
-
-def rE(mH, A, randomCos, v):
-    return (mH * r(mH, A) * (1 - randomCos) * v ** 2 / 4)
-
-
-def rCos():
-    return (2 * np.random.random_sample() - 1)
-
-
-def phi():
-    return (2 * np.pi * np.random.random_sample())
-
-
-def r01():
-    return (np.random.random_sample())
-
-
-def a_sel(ra, pASi, pATe):
-    if ra >= 0 and ra < pASi:
-        return (Si)
-    elif ra >= pASi and ra < 1 - pATe:
-        return (Hg)
-    else:
-        return (Te)
-
-
 def bounds(v0):
-    eRec = 0
     print("The spectrum calculation for v0=" + str(int(v0 * 300000)) + " km/s is initiated!")
-    l_inv_Si = lambdainv(mH, si0, Si, eRec)
-    l_inv_Hg = lambdainv(mH, si0, Hg, eRec)
-    l_inv_Te = lambdainv(mH, si0, Te, eRec)
-    leff = lambdaeff(l_inv_Si, l_inv_Hg, l_inv_Te)
-    pASi = pA(l_inv_Si, leff)
-    pATe = pA(l_inv_Te, leff)
-    pAHg = 1 - pASi - pATe
-    save = []
-    for i in range(int(1e+6)):
-        v = 1
-        while v > vesc:
-            v = maxwell.rvs(scale=v0, size=1)[0]
+    s = []
+    for rec in eRint:
+        vmSi = vmin(rec, Si)
+        vmTe = vmin(rec, Te)
+        vmHg = vmin(rec, Hg)
+        Norm = v0 ** 3 * np.sqrt(np.pi) / 4 * maxwell.cdf(vesc * np.sqrt(2) / v0, loc=0, scale=1)
+        if vmSi < vesc:
+            iSi = fr * v0 ** 2 / 2 * (np.exp(-(vmSi / v0) ** 2) - np.exp(-(vesc / v0) ** 2)) / Norm
         else:
-            ra = r01()
-            A = a_sel(ra, pASi, pATe)
-            CosXiCM = rCos()
-            rec = rE(mH, A, CosXiCM, v)
-            if rec >= 4e-6:
-                save.append([v, mH, si0, si(mH, si0, A, rec), rec, A])
-            elif rec >= 29e-9 and rec <= 2.505e-6:
-                save.append([v, mH, si0, si(mH, si0, A, rec), rec, A])
-    length = len(save)
+            iSi = 0
+        if vmTe < vesc:
+            iTe = fr * v0 ** 2 / 2 * (np.exp(-(vmTe / v0) ** 2) - np.exp(-(vesc / v0) ** 2)) / Norm
+        else:
+            iTe = 0
+        if vmHg < vesc:
+            iHg = fr * v0 ** 2 / 2 * (np.exp(-(vmHg / v0) ** 2) - np.exp(-(vesc / v0) ** 2)) / Norm
+        else:
+            iHg = 0
+        s.append([rec, 1.11276e+10 * (si0 * rhoDM / 2 / mH / reduced(mH, m_p) ** 2) * (
+        mSi * iSi * (Si * F(rec, Si)) ** 2 + mTe * iTe * (Te * F(rec, Te)) ** 2 + mHg * iHg * (Hg * F(rec, Hg)) ** 2)])
+
     Ei = []
     for i in range(13):
-        nSi = nHg = nTe = 0
         if i == 0:
             fe = 0.3815
         elif i == 1:
             fe = 0.5083
         else:
             fe = 1
-        sSi = []
-        sHg = []
-        sTe = []
-        for j in range(length):
-            if save[j][4] >= bin[i][0] and save[j][4] < bin[i][1]:
-                if save[j][5] == Si:
-                    nSi += 1
-                    sSi.append(save[j])
-                elif save[j][5] == Hg:
-                    nHg += 1
-                    sHg.append(save[j])
-                else:
-                    nTe += 1
-                    sTe.append(save[j])
-        sigmavSi = sum(sSi[i][0] * sSi[i][3] for i in range(nSi))
-        sigmavHg = sum(sHg[i][0] * sHg[i][3] for i in range(nHg))
-        sigmavTe = sum(sTe[i][0] * sTe[i][3] for i in range(nTe))
-        Ei.append(3e+7 * fr * eTime * N0 * fe * rhoDM / nj / mH * (
-            sigmavSi * mSi / Si / pASi + sigmavHg * mHg / Hg / pAHg + sigmavTe * mTe / Te / pATe))
+        if i == 12:
+            start = int(bin[i][0] * 1e+9) - 1523
+            end = len(s) - 1
+        else:
+            start = int(bin[i][0] * 1e+9) - 29
+            end = int(bin[i][1] * 1e+9) - 29
+        Ei.append(1.52e+15 * eTime * fe * (sum(s[j][1] for j in range(start, end + 1)) - (s[start][1] + s[end][1]) / 2))
     scale = max(Ei)
     return([300000 * v0, 5 * si0 / scale] + [5 * Ei[i] / scale for i in range(13)])
 
@@ -166,7 +90,6 @@ if __name__ == '__main__':
     rhoTarget = (rhoSi * volSi + rhoHgTe * volHgTe) / (volHgTe + volSi)
     eTime = 100.7
     m_p = 0.938
-    nj = int(1e+6)
     rhoDM = 0.3
     aF = 0.52
     sF = 0.9
@@ -174,10 +97,11 @@ if __name__ == '__main__':
     bin = [[29e-9, 36e-9, 0], [36e-9, 128e-9, 11], [128e-9, 300e-9, 129], [300e-9, 540e-9, 80], [540e-9, 700e-9, 90],
            [700e-9, 800e-9, 32], [800e-9, 945e-9, 48], [945e-9, 1100e-9, 31], [1100e-9, 1310e-9, 30],
            [1310e-9, 1500e-9, 29], [1500e-9, 1810e-9, 32], [1810e-9, 2505e-9, 15], [4000e-9, 1, 60]]
+    eRint = [i * 1e-9 for i in range(29, 2506)] + [i * 1e-9 for i in range(4000, 10001)] + [i*1e-9 for i in range(10001,30001)]
     mH = float(input("DM mass in GeV="))
     si0 = 5.5e-31
     vesc = 584 / 300000
-    vpeak = [(30 + 10 * i) / 300000 for i in range(28)]
+    vpeak = [(5 + 5 * i) / 300000 for i in range(20)]+[10 * (i+11) / 300000 for i in range(20)]
     pool1 = mp.Pool(n_cores)
     savet = pool1.map(bounds,vpeak)
     np.savetxt('sigma-v0_' + shielding_scenario +'(mH=' + format(mH, '.1f') + ').dat', savet)
