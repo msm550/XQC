@@ -101,7 +101,15 @@ if __name__ == '__main__':
     mH = float(input("DM mass in GeV="))
     si0 = 5.5e-31
     vesc = 584 / 300000
+    vpeak = [0.5 * (i + 1) / 300000 for i in range(10)]
+    pool1 = mp.Pool(n_cores)
+    savet = pool1.map(bounds, vpeak)
+    s1 = np.loadtxt('sigma-v0_' + shielding_scenario + '(mH=' + format(mH, '.1f') + ').dat', dtype='float')
+    s1 = np.append(np.array(savet), s1, axis=0)
+    np.savetxt('sigma-v0_' + shielding_scenario + '(mH=' + format(mH, '.1f') + ').dat', s1)
+    """
     vpeak = [(5 + 5 * i) / 300000 for i in range(20)]+[10 * (i+11) / 300000 for i in range(20)]
     pool1 = mp.Pool(n_cores)
     savet = pool1.map(bounds,vpeak)
     np.savetxt('sigma-v0_' + shielding_scenario +'(mH=' + format(mH, '.1f') + ').dat', savet)
+    """
